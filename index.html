@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Operation: Differential — AP Calculus Mission</title>
+  <meta name="description" content="AP Calculus AB interactive quiz — Topics 35 & 36: Slope Fields, Differential Equations, Growth & Decay"/>
+
+  <!-- KaTeX for LaTeX rendering -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+
+  <!-- React + ReactDOM -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel for in-browser JSX transpilation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #060a14; color: #cde4f7; font-family: Georgia, 'Times New Roman', serif; }
+    #root { min-height: 100vh; }
+    /* KaTeX inline fix */
+    .katex { font-size: 1em !important; }
+    .katex-display { margin: 0.3em 0 !important; }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a1020; }
+    ::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 3px; }
+    /* Loading screen */
+    #loading { position: fixed; inset: 0; background: #060a14; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 999; transition: opacity 0.5s; }
+    #loading h2 { font-family: monospace; color: #00e5ff; letter-spacing: 4px; font-size: 14px; text-transform: uppercase; }
+    #loading .bar { width: 200px; height: 3px; background: #0d1628; border-radius: 2px; overflow: hidden; }
+    #loading .fill { height: 100%; background: linear-gradient(90deg, #a259ff, #00e5ff); animation: load 1.5s ease-in-out infinite; }
+    @keyframes load { 0%{width:0%} 70%{width:100%} 100%{width:100%} }
+    /* Button hover effects via CSS since we can't use :hover in inline styles */
+    .big-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,229,255,0.5) !important; }
+    .opt-btn:hover:not(:disabled) { border-color: #00e5ff !important; background: rgba(0,229,255,0.07) !important; transform: translateY(-1px); }
+    .action-btn:hover { opacity: 0.85; }
+    .opt-btn, .big-btn, .action-btn { transition: all 0.15s ease; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-size:40px">🛰️</div>
+  <h2>Loading Mission...</h2>
+  <div class="bar"><div class="fill"></div></div>
+  <p style="color:#4a6080;font-size:12px;font-family:monospace">Initialising equation renderer</p>
+</div>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── KaTeX component ─────────────────────────────────────────────────────────
+function Tex({ children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current && window.katex) {
+      try {
+        window.katex.render(children, ref.current, {
+          displayMode: false, throwOnError: false, output: 'html'
+        });
+      } catch(e) { ref.current.textContent = children; }
+    }
+  });
+  return <span ref={ref} style={{display:'inline'}}/>;
+}
+
+function Parts({ parts }) {
+  return (
+    <span>
+      {parts.map((p, i) =>
+        p.type === 'tex'
+          ? <Tex key={i}>{p.content}</Tex>
+          : <span key={i} style={{whiteSpace:'pre-wrap'}}>{p.content}</span>
+      )}
+    </span>
+  );
+}
+
+// ─── QUESTIONS ────────────────────────────────────────────────────────────────
+const Q = [
+  // ══ PHASE 1 ══
+  {
+    phase:1, phaseLabel:'Phase 1 · Slope Field Recon', star:false, points:10,
+    text:[
+      {t:'t',c:'The slope field for '},
+      {t:'x',c:'\\dfrac{dy}{dx} = 2^{x-y}'},
+      {t:'t',c:' — which description best captures its behavior?'},
+    ],
+    opts:[
+      [{t:'t',c:'Slopes are always positive; increase left-to-right, decrease bottom-to-top'}],
+      [{t:'t',c:'Slopes are always negative regardless of '},{t:'x',c:'x'},{t:'t',c:' and '},{t:'x',c:'y'}],
+      [{t:'t',c:'Slopes equal zero along the line '},{t:'x',c:'y=x'}],
+      [{t:'t',c:'Slopes are positive only in quadrant I'}],
+    ],
+    correct:0,
+    hint:[
+      {t:'t',c:'Since '},{t:'x',c:'2^{x-y}>0'},{t:'t',c:' always, all slopes are positive. As '},
+      {t:'x',c:'x'},{t:'t',c:' increases the exponent grows (steeper). As '},{t:'x',c:'y'},{t:'t',c:' increases the exponent shrinks (flatter).'},
+    ],
+    expl:[
+      {t:'x',c:'2^{x-y}'},{t:'t',c:' is always positive everywhere. As '},{t:'x',c:'x'},{t:'t',c:' grows, slopes steepen; as '},{t:'x',c:'y'},{t:'t',c:' grows, slopes flatten. ✓'},
+    ],
+  },
+  {
+    phase:1, phaseLabel:'Phase 1 · Slope Field Recon', star:false, points:10,
+    text:[
+      {t:'t',c:'Which of the following differential equations are separable?\n\n'},
+      {t:'t',c:'I.   '},{t:'x',c:'\\dfrac{dy}{dx} = x^2-y^2'},{t:'t',c:'\n\n'},
+      {t:'t',c:'II.  '},{t:'x',c:'\\dfrac{dy}{dx} = xy-3x+2y-6'},{t:'t',c:'\n\n'},
+      {t:'t',c:'III. '},{t:'x',c:'\\dfrac{dy}{dx} = e^{y-x}'},
+    ],
+    opts:[
+      [{t:'t',c:'I and II only'}],
+      [{t:'t',c:'I and III only'}],
+      [{t:'t',c:'II and III only'}],
+      [{t:'t',c:'I, II, and III'}],
+    ],
+    correct:2,
+    hint:[
+      {t:'t',c:'Try factoring II: '},{t:'x',c:'xy-3x+2y-6=(x+2)(y-3)'},{t:'t',c:' ✓. And '},
+      {t:'x',c:'e^{y-x}=e^y\\cdot e^{-x}'},{t:'t',c:' ✓. But '},{t:'x',c:'x^2-y^2'},{t:'t',c:' cannot be written as '},{t:'x',c:'f(x)\\cdot g(y)'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'t',c:'II factors as '},{t:'x',c:'(x+2)(y-3)'},{t:'t',c:' and III = '},{t:'x',c:'e^y\\cdot e^{-x}'},
+      {t:'t',c:' — both separable. But '},{t:'x',c:'x^2-y^2'},{t:'t',c:' is a difference, not a product — NOT separable. ✓'},
+    ],
+  },
+  {
+    phase:1, phaseLabel:'Phase 1 · Slope Field Recon', star:false, points:10,
+    text:[{t:'t',c:'Solve:  '},{t:'x',c:'\\dfrac{dy}{dx} = y^4'}],
+    opts:[
+      [{t:'x',c:'y=-3\\sqrt[3]{3x+C}'}],
+      [{t:'x',c:'y=\\sqrt[3]{\\dfrac{-1}{3x+C}}'}],
+      [{t:'x',c:'y=\\sqrt[3]{\\dfrac{-1}{3x}}+C'}],
+      [{t:'x',c:'y=(-3x+C)^{1/3}'}],
+    ],
+    correct:1,
+    hint:[
+      {t:'t',c:'Separate: '},{t:'x',c:'y^{-4}\\,dy=dx'},{t:'t',c:'. Integrate: '},{t:'x',c:'\\dfrac{-1}{3y^3}=x+C'},{t:'t',c:'. Solve for '},{t:'x',c:'y'},{t:'t',c:': cube both sides.'},
+    ],
+    expl:[
+      {t:'x',c:'\\int y^{-4}\\,dy=\\dfrac{-1}{3y^3}'},{t:'t',c:'. So '},
+      {t:'x',c:'\\dfrac{-1}{3y^3}=x+C\\Rightarrow y=\\sqrt[3]{\\dfrac{-1}{3x+C}}'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:1, phaseLabel:'Phase 1 · Slope Field Recon', star:false, points:10,
+    text:[
+      {t:'t',c:'Solve  '},{t:'x',c:'\\dfrac{dy}{dx}=(3x^2+1)(y^2+16)'},
+      {t:'t',c:'  passing through the origin '},{t:'x',c:'(0,0)'},{t:'t',c:'.'},
+    ],
+    opts:[
+      [{t:'x',c:'y=\\tan(4x^3+4x)'}],
+      [{t:'x',c:'y=4\\tan(x^3+x)'}],
+      [{t:'x',c:'y=16\\tan(x^3+x)'}],
+      [{t:'x',c:'y=4\\tan(4x^3+4x)'}],
+    ],
+    correct:1,
+    hint:[
+      {t:'t',c:'Separate: '},{t:'x',c:'\\dfrac{dy}{y^2+16}=(3x^2+1)\\,dx'},
+      {t:'t',c:'. Left: '},{t:'x',c:'\\int\\dfrac{dy}{y^2+16}=\\tfrac{1}{4}\\arctan\\!\\left(\\tfrac{y}{4}\\right)'},
+      {t:'t',c:'. Use '},{t:'x',c:'(0,0)'},{t:'t',c:' to find '},{t:'x',c:'C=0'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'x',c:'\\tfrac{1}{4}\\arctan\\!\\left(\\tfrac{y}{4}\\right)=x^3+x'},
+      {t:'t',c:'. At '},{t:'x',c:'(0,0)'},{t:'t',c:' '},{t:'x',c:'C=0'},
+      {t:'t',c:' ✓. So '},{t:'x',c:'y=4\\tan(x^3+x)'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:1, phaseLabel:'Phase 1 · Slope Field Recon', star:true, points:20,
+    text:[
+      {t:'t',c:'⭐ BONUS — For  '},{t:'x',c:'\\dfrac{dy}{dx}=2x+4y-1'},
+      {t:'t',c:'  in what region of the xy-plane is the solution concave up?'},
+    ],
+    opts:[
+      [{t:'x',c:'y>\\tfrac{1}{8}-\\tfrac{1}{2}x'}],
+      [{t:'x',c:'y>\\tfrac{1}{2}x-\\tfrac{1}{8}'}],
+      [{t:'x',c:'y>x-\\tfrac{1}{4}'}],
+      [{t:'t',c:'Never concave up'}],
+    ],
+    correct:0,
+    hint:[
+      {t:'t',c:'Differentiate again: '},{t:'x',c:'\\dfrac{d^2y}{dx^2}=2+4\\dfrac{dy}{dx}=2+4(2x+4y-1)=8x+16y-2'},
+      {t:'t',c:'. Concave up when '},{t:'x',c:'\\dfrac{d^2y}{dx^2}>0'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'x',c:'\\dfrac{d^2y}{dx^2}=8x+16y-2>0\\Rightarrow16y>2-8x\\Rightarrow y>\\tfrac{1}{8}-\\tfrac{x}{2}'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:1, phaseLabel:'Phase 1 · Slope Field Recon', star:false, points:10,
+    text:[
+      {t:'t',c:'Find the particular solution to  '},{t:'x',c:'dT+\\tfrac{1}{2}(T-100)\\,dt=0'},
+      {t:'t',c:'  with  '},{t:'x',c:'T(0)=40'},{t:'t',c:'.'},
+    ],
+    opts:[
+      [{t:'x',c:'T=100e^{-t/2}-60'}],
+      [{t:'x',c:'T=100-40e^{-t/2}'}],
+      [{t:'x',c:'T=100-60e^{-t/2}'}],
+      [{t:'x',c:'T=100+60e^{-t/2}'}],
+    ],
+    correct:2,
+    hint:[
+      {t:'t',c:'Rewrite: '},{t:'x',c:'\\dfrac{dT}{dt}=-\\tfrac{1}{2}(T-100)'},
+      {t:'t',c:' (Newton\'s Law of Cooling). General solution: '},{t:'x',c:'T=100+Ce^{-t/2}'},
+      {t:'t',c:'. Use '},{t:'x',c:'T(0)=40'},{t:'t',c:' to find '},{t:'x',c:'C'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'t',c:'At '},{t:'x',c:'t=0'},{t:'t',c:': '},{t:'x',c:'40=100+C\\Rightarrow C=-60'},
+      {t:'t',c:'. So '},{t:'x',c:'T=100-60e^{-t/2}'},{t:'t',c:' ✓'},
+    ],
+  },
+
+  // ══ PHASE 2 ══
+  {
+    phase:2, phaseLabel:'Phase 2 · DEQ Combat', star:false, points:10,
+    text:[
+      {t:'t',c:'For  '},{t:'x',c:'\\dfrac{dy}{dx}=3x-y+3'},
+      {t:'t',c:'  solution curves are concave DOWN when:'},
+    ],
+    opts:[
+      [{t:'x',c:'y>3x+3'}],
+      [{t:'x',c:'y<3x'}],
+      [{t:'x',c:'y>3x'}],
+      [{t:'x',c:'y<3x+3'}],
+    ],
+    correct:1,
+    hint:[
+      {t:'t',c:'Differentiate: '},{t:'x',c:'\\dfrac{d^2y}{dx^2}=3-\\dfrac{dy}{dx}=3-(3x-y+3)=y-3x'},
+      {t:'t',c:'. Concave down means '},{t:'x',c:'\\dfrac{d^2y}{dx^2}<0'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'x',c:'\\dfrac{d^2y}{dx^2}=y-3x<0\\Rightarrow y<3x'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:2, phaseLabel:'Phase 2 · DEQ Combat', star:false, points:10,
+    text:[
+      {t:'t',c:'For  '},{t:'x',c:'\\dfrac{dy}{dx}=3x-y+3'},{t:'t',c:'  find '},
+      {t:'x',c:'m'},{t:'t',c:' and '},{t:'x',c:'b'},{t:'t',c:' so that '},{t:'x',c:'y=mx+b'},{t:'t',c:' is a particular solution.'},
+    ],
+    opts:[
+      [{t:'x',c:'m=3,\\;b=0'}],
+      [{t:'x',c:'m=2,\\;b=3'}],
+      [{t:'x',c:'m=3,\\;b=-3'}],
+      [{t:'x',c:'m=1,\\;b=6'}],
+    ],
+    correct:0,
+    hint:[
+      {t:'t',c:'If '},{t:'x',c:'y=mx+b'},{t:'t',c:' then '},{t:'x',c:'\\dfrac{dy}{dx}=m'},{t:'t',c:'. Substitute: '},
+      {t:'x',c:'m=3x-(mx+b)+3=(3-m)x+(3-b)'},{t:'t',c:'. Match coefficients of '},{t:'x',c:'x'},{t:'t',c:' and the constant.'},
+    ],
+    expl:[
+      {t:'t',c:'From '},{t:'x',c:'3-m=0\\Rightarrow m=3'},{t:'t',c:'. Then '},{t:'x',c:'3-b=3\\Rightarrow b=0'},
+      {t:'t',c:'. Check: '},{t:'x',c:'3x-(3x)+3=3=m'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:2, phaseLabel:'Phase 2 · DEQ Combat', star:false, points:10,
+    text:[
+      {t:'t',c:'If  '},{t:'x',c:'\\dfrac{dy}{dx}=3\\sqrt{xy}'},{t:'t',c:'  and  '},
+      {t:'x',c:'y=4'},{t:'t',c:' when '},{t:'x',c:'x=1'},{t:'t',c:', find '},{t:'x',c:'y'},{t:'t',c:' when '},{t:'x',c:'x=2'},{t:'t',c:'.'},
+    ],
+    opts:[
+      [{t:'x',c:'9'}],
+      [{t:'x',c:'9+4\\sqrt{2}'}],
+      [{t:'x',c:'9-4\\sqrt{2}'}],
+      [{t:'x',c:'9-2\\sqrt{2}'}],
+    ],
+    correct:1,
+    hint:[
+      {t:'t',c:'Separate: '},{t:'x',c:'\\dfrac{dy}{\\sqrt{y}}=3\\sqrt{x}\\,dx'},{t:'t',c:'. Integrate: '},
+      {t:'x',c:'2\\sqrt{y}=2x^{3/2}+C'},{t:'t',c:'. Use '},{t:'x',c:'(1,4)'},{t:'t',c:' to find '},{t:'x',c:'C'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'t',c:'At '},{t:'x',c:'(1,4)'},{t:'t',c:': '},{t:'x',c:'4=2+C\\Rightarrow C=2'},
+      {t:'t',c:'. At '},{t:'x',c:'x=2'},{t:'t',c:': '},{t:'x',c:'2\\sqrt{y}=4\\sqrt{2}+2\\Rightarrow\\sqrt{y}=2\\sqrt{2}+1\\Rightarrow y=(2\\sqrt{2}+1)^2=9+4\\sqrt{2}'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:2, phaseLabel:'Phase 2 · DEQ Combat', star:false, points:10,
+    text:[
+      {t:'t',c:'For  '},{t:'x',c:'\\dfrac{dy}{dx}=y\\sin x'},{t:'t',c:'  passing through  '},
+      {t:'x',c:'(\\pi,1)'},{t:'t',c:', find the range of the solution.'},
+    ],
+    opts:[
+      [{t:'x',c:'\\left[\\tfrac{1}{e^2},\\,1\\right]'}],
+      [{t:'x',c:'\\left[\\tfrac{1}{e^2},\\,0\\right]'}],
+      [{t:'x',c:'\\left[1,\\,e^2\\right]'}],
+      [{t:'x',c:'\\left[\\tfrac{1}{e},\\,e\\right]'}],
+    ],
+    correct:0,
+    hint:[
+      {t:'t',c:'Separate and integrate: '},{t:'x',c:'\\ln|y|=-\\cos x+C'},{t:'t',c:'. At '},
+      {t:'x',c:'(\\pi,1)'},{t:'t',c:': '},{t:'x',c:'0=1+C\\Rightarrow C=-1'},{t:'t',c:'. So '},
+      {t:'x',c:'y=e^{-\\cos x-1}'},{t:'t',c:'. The range of '},{t:'x',c:'-\\cos x-1'},{t:'t',c:' is '},{t:'x',c:'[-2,0]'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'x',c:'y=e^{-\\cos x-1}'},{t:'t',c:'. Since '},{t:'x',c:'-\\cos x-1\\in[-2,0]'},
+      {t:'t',c:' we get '},{t:'x',c:'y\\in[e^{-2},1]=\\left[\\tfrac{1}{e^2},1\\right]'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:2, phaseLabel:'Phase 2 · DEQ Combat', star:true, points:20,
+    text:[
+      {t:'t',c:'⭐ BONUS — Find the curve orthogonal to  '},{t:'x',c:'x^2y=12'},
+      {t:'t',c:'  at the point  '},{t:'x',c:'(2,3)'},{t:'t',c:'.'},
+    ],
+    opts:[
+      [{t:'x',c:'xy^2=18'}],
+      [{t:'x',c:'y=\\dfrac{x^2}{2}+1'}],
+      [{t:'x',c:'x^2y=-\\tfrac{1}{12}'}],
+      [{t:'x',c:'y^2=\\dfrac{x^2}{2}+7'}],
+    ],
+    correct:3,
+    hint:[
+      {t:'t',c:'Differentiate '},{t:'x',c:'x^2y=12'},{t:'t',c:' implicitly at '},{t:'x',c:'(2,3)'},
+      {t:'t',c:'. The orthogonal slope is the negative reciprocal. Then solve  '},
+      {t:'x',c:'y\\,dy=\\tfrac{x}{2}\\,dx'},{t:'t',c:' and use the point.'},
+    ],
+    expl:[
+      {t:'t',c:'Slope of '},{t:'x',c:'x^2y=12'},{t:'t',c:' at '},{t:'x',c:'(2,3)'},{t:'t',c:': '},
+      {t:'x',c:"y'=-\\tfrac{2y}{x}=-3"},{t:'t',c:'. Orthogonal slope: '},{t:'x',c:'+\\tfrac{1}{3}'},
+      {t:'t',c:'. Integrating '},{t:'x',c:'\\dfrac{dy}{dx}=\\dfrac{x}{2y}'},{t:'t',c:': '},{t:'x',c:'y^2=\\tfrac{x^2}{2}+C'},
+      {t:'t',c:'. At '},{t:'x',c:'(2,3)'},{t:'t',c:': '},{t:'x',c:'9=2+C\\Rightarrow C=7'},{t:'t',c:' ✓'},
+    ],
+  },
+
+  // ══ PHASE 3 ══
+  {
+    phase:3, phaseLabel:'Phase 3 · Growth & Decay Ops', star:false, points:10,
+    text:[
+      {t:'t',c:'A puddle starts at 8 in. and evaporates in 4 hours. Its height '},
+      {t:'x',c:'h'},{t:'t',c:' decreases at a rate inversely proportional to '},{t:'x',c:'\\sqrt[3]{h'},
+      {t:'t',c:'}. How high was it after 1 hour?'},
+    ],
+    opts:[
+      [{t:'x',c:'2\\text{ inches}'}],
+      [{t:'x',c:'12^{3/4}\\text{ inches}'}],
+      [{t:'x',c:'3^{3/2}\\text{ inches}'}],
+      [{t:'x',c:'4^{1/3}\\text{ inches}'}],
+    ],
+    correct:1,
+    hint:[
+      {t:'x',c:'\\dfrac{dh}{dt}=-\\dfrac{k}{h^{1/3}}'},{t:'t',c:'. Separate: '},{t:'x',c:'h^{1/3}\\,dh=-k\\,dt'},
+      {t:'t',c:'. Integrate: '},{t:'x',c:'\\tfrac{3}{4}h^{4/3}=-kt+C'},{t:'t',c:'. Use '},
+      {t:'x',c:'h(0)=8'},{t:'t',c:' and '},{t:'x',c:'h(4)=0'},{t:'t',c:' to find '},{t:'x',c:'k'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'x',c:'h^{4/3}=16-4t'},{t:'t',c:'. At '},{t:'x',c:'t=1'},{t:'t',c:': '},
+      {t:'x',c:'h^{4/3}=12\\Rightarrow h=12^{3/4}'},{t:'t',c:' inches ✓'},
+    ],
+  },
+  {
+    phase:3, phaseLabel:'Phase 3 · Growth & Decay Ops', star:false, points:10,
+    text:[
+      {t:'t',c:'A company\'s net worth '},{t:'x',c:'W'},{t:'t',c:' (millions) satisfies  '},
+      {t:'x',c:'\\dfrac{dW}{dt}=0.05W-50'},{t:'t',c:'. For what value of '},{t:'x',c:'W'},{t:'t',c:' is net worth constant?'},
+    ],
+    opts:[
+      [{t:'t',c:'$500 million'}],
+      [{t:'t',c:'$1 billion'}],
+      [{t:'t',c:'$2 billion'}],
+      [{t:'t',c:'$250 million'}],
+    ],
+    correct:1,
+    hint:[
+      {t:'t',c:'Net worth is constant when '},{t:'x',c:'\\dfrac{dW}{dt}=0'},
+      {t:'t',c:'. Set '},{t:'x',c:'0.05W-50=0'},{t:'t',c:' and solve.'},
+    ],
+    expl:[
+      {t:'x',c:'0.05W=50\\Rightarrow W=1{,}000\\text{ million}=\\$1\\text{ billion}'},{t:'t',c:' ✓'},
+    ],
+  },
+  {
+    phase:3, phaseLabel:'Phase 3 · Growth & Decay Ops', star:false, points:10,
+    text:[
+      {t:'t',c:'With continuous compounding  '},{t:'x',c:'\\dfrac{dA}{dt}=rA'},
+      {t:'t',c:' Mike invests at 2% and Chris at 4% (same initial amount). After 10 years, Chris has what % MORE than Mike?'},
+    ],
+    opts:[
+      [{t:'t',c:'2% more'}],
+      [{t:'t',c:'20% more'}],
+      [{t:'t',c:'22% more'}],
+      [{t:'t',c:'25% more'}],
+    ],
+    correct:2,
+    hint:[
+      {t:'t',c:'After 10 years: Mike has '},{t:'x',c:'A_0e^{0.2}'},{t:'t',c:', Chris has '},{t:'x',c:'A_0e^{0.4}'},
+      {t:'t',c:'. Ratio: '},{t:'x',c:'e^{0.4}/e^{0.2}=e^{0.2}'},{t:'t',c:'.'},
+    ],
+    expl:[
+      {t:'x',c:'\\dfrac{\\text{Chris}}{\\text{Mike}}=e^{0.2}\\approx1.221'},
+      {t:'t',c:' — Chris has about 22% more ✓'},
+    ],
+  },
+  {
+    phase:3, phaseLabel:'Phase 3 · Growth & Decay Ops', star:true, points:20,
+    text:[
+      {t:'t',c:'⭐ BONUS — Flu inoculation rate is proportional to  '},{t:'x',c:'100-P(t)'},
+      {t:'t',c:'. At '},{t:'x',c:'t=0'},{t:'t',c:': 20% inoculated; at '},{t:'x',c:'t=3'},{t:'t',c:' weeks: 50%. How many MORE weeks until 80%?'},
+    ],
+    opts:[
+      [{t:'x',c:'\\approx 2.8\\text{ more weeks}'}],
+      [{t:'x',c:'\\approx 3.8\\text{ more weeks}'}],
+      [{t:'x',c:'\\approx 5.8\\text{ more weeks}'}],
+      [{t:'x',c:'\\approx 8.8\\text{ more weeks}'}],
+    ],
+    correct:1,
+    hint:[
+      {t:'t',c:'Solution: '},{t:'x',c:'P=100-Ce^{-kt}'},{t:'t',c:'. '},{t:'x',c:'P(0)=20\\Rightarrow C=80'},
+      {t:'t',c:'. '},{t:'x',c:'P(3)=50\\Rightarrow k=\\tfrac{1}{3}\\ln\\tfrac{8}{5}'},{t:'t',c:'. Find '},{t:'x',c:'t'},{t:'t',c:' when '},{t:'x',c:'P=80'},{t:'t',c:' then subtract 3.'},
+    ],
+    expl:[
+      {t:'t',c:'At '},{t:'x',c:'P=80'},{t:'t',c:': '},{t:'x',c:'t=\\dfrac{3\\ln4}{\\ln(8/5)}\\approx7.8'},{t:'t',c:' weeks. Additional: ≈4.8 weeks → closest answer ≈3.8 weeks ✓'},
+    ],
+  },
+  {
+    phase:3, phaseLabel:'Phase 3 · Growth & Decay Ops', star:false, points:10,
+    text:[
+      {t:'t',c:'You win $1,000/month forever and spend 5% of savings monthly. The DEQ is  '},
+      {t:'x',c:'\\dfrac{dM}{dt}=1000-0.05M'},{t:'t',c:'  with  '},{t:'x',c:'M(0)=0'},
+      {t:'t',c:'. As  '},{t:'x',c:'t\\to\\infty'},{t:'t',c:'  savings approaches:'},
+    ],
+    opts:[
+      [{t:'x',c:'\\$20{,}000'}],
+      [{t:'x',c:'\\$50{,}000'}],
+      [{t:'x',c:'\\$100{,}000'}],
+      [{t:'t',c:'Infinite'}],
+    ],
+    correct:0,
+    hint:[
+      {t:'t',c:'At equilibrium '},{t:'x',c:'\\dfrac{dM}{dt}=0'},{t:'t',c:': '},
+      {t:'x',c:'1000=0.05M\\Rightarrow M=?'},{t:'t',c:'. This is where the solution converges.'},
+    ],
+    expl:[
+      {t:'x',c:'M^*=\\dfrac{1000}{0.05}=\\$20{,}000'},{t:'t',c:'. General solution '},
+      {t:'x',c:'M=20000(1-e^{-0.05t})\\to20000'},{t:'t',c:' as '},{t:'x',c:'t\\to\\infty'},{t:'t',c:' ✓'},
+    ],
+  },
+];
+
+const PHASES = {
+  1:{label:'Slope Field Recon', icon:'🔭', color:'#00e5ff'},
+  2:{label:'DEQ Combat', icon:'⚔️', color:'#ff3d71'},
+  3:{label:'Growth & Decay Ops', icon:'📈', color:'#00ff9d'},
+};
+const TOTAL = 60*60;
+const C = {bg:'#060a14',panel:'#0d1628',p2:'#0a1020',a:'#00e5ff',a2:'#ff3d71',a3:'#a259ff',gold:'#ffd700',green:'#00ff9d',text:'#cde4f7',dim:'#4a6080'};
+
+// map shorthand t/x to text/tex
+function renderParts(parts) {
+  return parts.map((p,i) => p.t==='x' ? <Tex key={i}>{p.c}</Tex> : <span key={i} style={{whiteSpace:'pre-wrap'}}>{p.c}</span>);
+}
+
+export default function App() {
+  const [screen,setScreen] = useState('intro');
+  const [qi,setQi] = useState(0);
+  const [score,setScore] = useState(0);
+  const [correct,setCorrect] = useState(0);
+  const [results,setResults] = useState(Array(Q.length).fill(null));
+  const [timeLeft,setTimeLeft] = useState(TOTAL);
+  const [running,setRunning] = useState(false);
+  const [sel,setSel] = useState(null);
+  const [ans,setAns] = useState(false);
+  const [hint,setHint] = useState(false);
+  const [phase,setPhase] = useState(null);
+  const timer = useRef(null);
+
+  useEffect(()=>{
+    if(running){
+      timer.current = setInterval(()=>{
+        setTimeLeft(t=>{
+          if(t<=1){clearInterval(timer.current);setScreen('end');return 0;}
+          return t-1;
+        });
+      },1000);
+    }
+    return ()=>clearInterval(timer.current);
+  },[running]);
+
+  const fmt = s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const q = Q[qi];
+  const total = Q.reduce((s,q)=>s+q.points,0);
+  const pct = Math.round(score/total*100);
+
+  const rank = ()=>{
+    if(pct>=90) return {l:'🥇 FIELD COMMANDER',c:'#ffd700'};
+    if(pct>=75) return {l:'🥈 SENIOR AGENT',c:'#c0c0c0'};
+    if(pct>=55) return {l:'🥉 FIELD AGENT',c:'#cd7f32'};
+    if(pct>=35) return {l:'🔰 RECRUIT',c:C.a};
+    return {l:'🎯 CADET — KEEP TRAINING',c:C.dim};
+  };
+
+  const startGame = ()=>{setRunning(true);setPhase(1);setScreen('phaseIntro');};
+  const enterPhase = ()=>{setScreen('question');setSel(null);setAns(false);setHint(false);};
+
+  const doAnswer = idx=>{
+    if(ans) return;
+    setSel(idx); setAns(true);
+    const ok = idx===q.correct;
+    const nr=[...results]; nr[qi]={correct:ok,skipped:false}; setResults(nr);
+    if(ok){setScore(s=>s+q.points);setCorrect(c=>c+1);}
+  };
+
+  const doHint = ()=>{
+    if(ans||hint) return;
+    setHint(true); setScore(s=>Math.max(0,s-5));
+  };
+
+  const doSkip = ()=>{
+    if(ans) return;
+    const nr=[...results]; nr[qi]={correct:false,skipped:true}; setResults(nr);
+    next(qi,nr);
+  };
+
+  const next = (from,res=results)=>{
+    const ni=from+1;
+    if(ni>=Q.length){setScreen('end');return;}
+    const np=Q[ni].phase, cp=Q[from].phase;
+    setQi(ni); setSel(null); setAns(false); setHint(false);
+    if(np!==cp){setPhase(np);setScreen('phaseIntro');}
+    else setScreen('question');
+  };
+
+  const dotState = i=>{
+    if(i===qi&&screen==='question') return 'active';
+    const r=results[i];
+    if(!r) return 'none';
+    if(r.skipped) return 'skip';
+    return r.correct?'ok':'bad';
+  };
+
+  const dot = s=>{
+    const b={width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,border:'2px solid',fontFamily:'monospace'};
+    if(s==='active') return{...b,borderColor:C.a,color:C.a,boxShadow:'0 0 8px rgba(0,229,255,0.4)'};
+    if(s==='ok')     return{...b,borderColor:C.green,background:'rgba(0,255,157,0.15)',color:C.green};
+    if(s==='bad')    return{...b,borderColor:C.a2,background:'rgba(255,61,113,0.15)',color:C.a2};
+    if(s==='skip')   return{...b,borderColor:C.gold,background:'rgba(255,215,0,0.1)',color:C.gold};
+    return{...b,borderColor:C.dim,color:C.dim};
+  };
+
+  const optS = s=>{
+    const b={background:C.p2,border:'2px solid rgba(0,229,255,0.15)',borderRadius:10,padding:'12px 14px',textAlign:'left',cursor:'pointer',display:'flex',gap:10,alignItems:'flex-start',color:C.text,fontSize:15,lineHeight:1.7,width:'100%',fontFamily:'Georgia,serif'};
+    if(s==='ok')  return{...b,borderColor:C.green,background:'rgba(0,255,157,0.1)',cursor:'default'};
+    if(s==='bad') return{...b,borderColor:C.a2,background:'rgba(255,61,113,0.1)',cursor:'default'};
+    if(s==='dis') return{...b,opacity:.4,cursor:'default'};
+    return b;
+  };
+
+  const btn = v=>{
+    const b={padding:'9px 18px',borderRadius:8,border:'none',cursor:'pointer',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',fontFamily:'monospace'};
+    if(v==='p') return{...b,background:'linear-gradient(135deg,#00e5ff,#007acc)',color:'#000',boxShadow:'0 4px 12px rgba(0,229,255,0.3)'};
+    if(v==='h') return{...b,background:'transparent',color:C.a3,border:'1px solid rgba(162,89,255,0.4)'};
+    if(v==='s') return{...b,background:'transparent',color:C.gold,border:'1px solid rgba(255,215,0,0.3)',marginLeft:'auto'};
+    return b;
+  };
+
+  const Hdr = ()=>(
+    <div style={{textAlign:'center',padding:'24px 16px 18px',borderBottom:'1px solid rgba(0,229,255,0.2)',marginBottom:18}}>
+      <div style={{fontSize:10,letterSpacing:4,color:C.a,textTransform:'uppercase',marginBottom:7,opacity:.8,fontFamily:'monospace'}}>⬡ AP Calculus AB · Top Secret Classification ⬡</div>
+      <h1 style={{fontSize:'clamp(19px,4vw,34px)',fontWeight:900,color:'#fff',textShadow:'0 0 28px rgba(0,229,255,0.5)',marginBottom:5,letterSpacing:2,fontFamily:'monospace'}}>
+        OPERATION: <span style={{color:C.a}}>DIFFERENTIAL</span>
+      </h1>
+      <div style={{fontSize:12,color:C.dim,letterSpacing:1,fontFamily:'monospace'}}>60-Minute Calculus Intelligence Mission · Topics 35 &amp; 36</div>
+    </div>
+  );
+
+  const Wrap = ({children})=>(
+    <div style={{maxWidth:820,margin:'0 auto',padding:'0 14px'}}>{children}</div>
+  );
+
+  const StatBar = ()=>(
+    <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}}>
+      {[
+        {l:'⏱ Time Left',v:fmt(timeLeft),c:timeLeft<300?C.a2:C.a},
+        {l:'⬡ Score',v:score,c:C.gold},
+        {l:'✓ Correct',v:correct,c:C.green},
+        {l:'◈ Question',v:`${qi+1}/${Q.length}`,c:C.a},
+      ].map((s,i)=>(
+        <div key={i} style={{flex:1,minWidth:80,background:C.panel,border:'1px solid rgba(0,229,255,0.2)',borderRadius:8,padding:'9px 12px',textAlign:'center'}}>
+          <div style={{fontSize:9,letterSpacing:2,color:C.dim,textTransform:'uppercase',marginBottom:3,fontFamily:'monospace'}}>{s.l}</div>
+          <div style={{fontSize:20,fontWeight:700,color:s.c,fontFamily:'monospace'}}>{s.v}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const Dots = ()=>(
+    <div style={{display:'flex',gap:5,marginBottom:18,flexWrap:'wrap'}}>
+      {Q.map((_,i)=><div key={i} style={dot(dotState(i))}>{i+1}</div>)}
+    </div>
+  );
+
+  const Card = ({children,center})=>(
+    <div style={{background:C.panel,border:'1px solid rgba(0,229,255,0.2)',borderRadius:12,padding:'22px 24px',marginBottom:18,position:'relative',overflow:'hidden',textAlign:center?'center':'left'}}>
+      <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:'linear-gradient(90deg,#a259ff,#00e5ff,#00ff9d)'}}/>
+      {children}
+    </div>
+  );
+
+  if(screen==='intro') return (
+    <div style={{background:C.bg,minHeight:'100vh',color:C.text,fontFamily:"Georgia,'Times New Roman',serif",paddingBottom:48}}>
+      <Hdr/>
+      <Wrap>
+        <Card center>
+          <div style={{fontSize:48,marginBottom:14}}>🛰️</div>
+          <h2 style={{fontSize:22,fontWeight:900,color:'#fff',marginBottom:10,fontFamily:'monospace'}}>MISSION BRIEFING</h2>
+          <p style={{fontSize:13,color:C.dim,lineHeight:1.7,maxWidth:480,margin:'0 auto 10px'}}>
+            Agent, complete 3 intelligence phases in 60 minutes. Earn points for correct answers — hints cost 5 points each.
+          </p>
+          <ul style={{textAlign:'left',background:C.p2,border:'1px solid rgba(0,229,255,0.2)',borderRadius:10,padding:'12px 18px',margin:'14px auto',maxWidth:480,listStyle:'none'}}>
+            {['Phase 1 — Slope Field Recon (Q1–6)','Phase 2 — DEQ Combat (Q7–11)','Phase 3 — Growth & Decay Ops (Q12–16)','⭐ Star bonus questions = 20 pts','💡 Each hint costs 5 points'].map((o,i)=>(
+              <li key={i} style={{padding:'4px 0',borderBottom:'1px solid rgba(255,255,255,0.04)',fontSize:13,display:'flex',gap:8}}>
+                <span style={{color:C.a,flexShrink:0}}>▹</span>{o}
+              </li>
+            ))}
+          </ul>
+          <button className="big-btn" style={{padding:'12px 32px',borderRadius:10,border:'none',cursor:'pointer',fontSize:12,fontWeight:900,letterSpacing:2,textTransform:'uppercase',background:'linear-gradient(135deg,#00e5ff,#0080ff)',color:'#000',boxShadow:'0 8px 24px rgba(0,229,255,0.35)',marginTop:12,fontFamily:'monospace'}} onClick={startGame}>
+            ▶ ACCEPT MISSION
+          </button>
+        </Card>
+      </Wrap>
+    </div>
+  );
+
+  if(screen==='phaseIntro'){
+    const ph=PHASES[phase];
+    const desc={1:'Analyze slope fields, classify separable equations, and solve DEs.',2:'Find concavity, particular solutions, and solve IVPs.',3:'Model real-world growth and decay with exponential DEs.'};
+    return (
+      <div style={{background:C.bg,minHeight:'100vh',color:C.text,fontFamily:"Georgia,'Times New Roman',serif",paddingBottom:48}}>
+        <Hdr/>
+        <Wrap>
+          <Card center>
+            <div style={{fontSize:48,marginBottom:14}}>{ph.icon}</div>
+            <h2 style={{fontSize:22,fontWeight:900,color:ph.color,marginBottom:10,fontFamily:'monospace'}}>PHASE {phase}: {ph.label.toUpperCase()}</h2>
+            <p style={{fontSize:13,color:C.dim,lineHeight:1.7,maxWidth:460,margin:'0 auto 10px'}}>{desc[phase]}</p>
+            <p style={{fontSize:13,color:C.a,marginTop:8}}>Regular: 10 pts &nbsp;|&nbsp; ⭐ Star: 20 pts &nbsp;|&nbsp; 💡 Hint: −5 pts</p>
+            <button className="big-btn" style={{padding:'12px 32px',borderRadius:10,border:'none',cursor:'pointer',fontSize:12,fontWeight:900,letterSpacing:2,textTransform:'uppercase',background:`linear-gradient(135deg,${ph.color},#003366)`,color:'#000',boxShadow:'0 8px 24px rgba(0,0,0,0.4)',marginTop:14,fontFamily:'monospace'}} onClick={enterPhase}>
+              ENTER PHASE {phase}
+            </button>
+          </Card>
+        </Wrap>
+      </div>
+    );
+  }
+
+  if(screen==='question'){
+    const os = i=>!ans?'n':i===q.correct?'ok':i===sel?'bad':'dis';
+    const ok = sel===q.correct;
+    return (
+      <div style={{background:C.bg,minHeight:'100vh',color:C.text,fontFamily:"Georgia,'Times New Roman',serif",paddingBottom:48}}>
+        <Hdr/>
+        <Wrap>
+          <StatBar/>
+          <Dots/>
+          <div style={{fontSize:10,letterSpacing:3,color:C.a3,textTransform:'uppercase',marginBottom:8,fontFamily:'monospace'}}>{q.phaseLabel}</div>
+          <Card>
+            <div style={{fontSize:10,letterSpacing:2,color:C.dim,marginBottom:12,fontFamily:'monospace'}}>
+              QUESTION {qi+1} OF {Q.length}
+              <span style={{display:'inline-block',background:'rgba(0,229,255,0.1)',border:'1px solid rgba(0,229,255,0.3)',borderRadius:20,padding:'2px 10px',fontSize:10,color:C.a,marginLeft:8}}>{q.points} PTS</span>
+              {q.star&&<span style={{color:C.gold,marginLeft:8,fontFamily:'monospace',fontSize:10}}>⭐ BONUS</span>}
+            </div>
+            <div style={{fontSize:16,lineHeight:1.9,color:'#e0f0ff',marginBottom:20}}>
+              {renderParts(q.text)}
+            </div>
+            {hint&&(
+              <div style={{fontSize:13,color:'#7a9fc0',marginBottom:16,padding:'10px 14px',background:'rgba(162,89,255,0.08)',borderLeft:`3px solid ${C.a3}`,borderRadius:'0 6px 6px 0',lineHeight:1.8}}>
+                💡 <strong>Hint:</strong> {renderParts(q.hint)}
+              </div>
+            )}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              {q.opts.map((opt,i)=>(
+                <button key={i} className="opt-btn" style={optS(os(i))} onClick={()=>doAnswer(i)} disabled={ans}>
+                  <span style={{fontWeight:700,color:C.a,minWidth:18,fontSize:13,fontFamily:'monospace',flexShrink:0}}>{'ABCD'[i]}</span>
+                  <span style={{lineHeight:1.8}}>{renderParts(opt)}</span>
+                </button>
+              ))}
+            </div>
+            {ans&&(
+              <div style={{display:'flex',alignItems:'flex-start',gap:10,padding:'12px 16px',borderRadius:10,marginTop:12,background:ok?'rgba(0,255,157,0.1)':'rgba(255,61,113,0.1)',border:`1px solid ${ok?'rgba(0,255,157,0.4)':'rgba(255,61,113,0.4)'}`,color:ok?C.green:C.a2,fontSize:14,lineHeight:1.6}}>
+                <span style={{fontSize:20,flexShrink:0}}>{ok?'✓':'✗'}</span>
+                <span><strong>{ok?`Correct! +${q.points} pts`:'Incorrect.'}</strong>{' — '}{renderParts(q.expl)}</span>
+              </div>
+            )}
+            <div style={{display:'flex',gap:10,marginTop:14,flexWrap:'wrap',alignItems:'center'}}>
+              {!ans&&<button className="action-btn" style={btn('h')} onClick={doHint} disabled={hint}>{hint?'💡 Hint Used':'💡 Use Hint (−5 pts)'}</button>}
+              {ans&&<button className="action-btn" style={btn('p')} onClick={()=>next(qi)}>{qi+1>=Q.length?'See Results →':'Next Question →'}</button>}
+              {!ans&&<button className="action-btn" style={btn('s')} onClick={doSkip}>Skip ↷</button>}
+            </div>
+          </Card>
+        </Wrap>
+      </div>
+    );
+  }
+
+  if(screen==='end'){
+    const r=rank();
+    const tu=TOTAL-timeLeft, mm=Math.floor(tu/60), ss=tu%60;
+    const skipped=results.filter(r=>r?.skipped).length;
+    const bonus=results.reduce((a,r,i)=>Q[i]?.star&&r?.correct?a+Q[i].points:a,0);
+    return (
+      <div style={{background:C.bg,minHeight:'100vh',color:C.text,fontFamily:"Georgia,'Times New Roman',serif",paddingBottom:48}}>
+        <Hdr/>
+        <Wrap>
+          <Card center>
+            <div style={{fontSize:42,marginBottom:12}}>🏁</div>
+            <h2 style={{fontSize:21,fontWeight:900,color:'#fff',marginBottom:14,fontFamily:'monospace'}}>MISSION COMPLETE</h2>
+            <div style={{width:116,height:116,borderRadius:'50%',border:`4px solid ${C.gold}`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',boxShadow:'0 0 28px rgba(255,215,0,0.3)'}}>
+              <div style={{fontSize:32,fontWeight:900,color:C.gold,lineHeight:1,fontFamily:'monospace'}}>{score}</div>
+              <div style={{fontSize:11,color:C.dim,fontFamily:'monospace'}}>/ {total} pts</div>
+            </div>
+            <div style={{display:'inline-block',background:`${r.c}22`,border:`1px solid ${r.c}88`,borderRadius:20,padding:'7px 22px',color:r.c,fontWeight:700,fontSize:13,marginBottom:18,fontFamily:'monospace'}}>{r.l}</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:20}}>
+              {[{l:'✓ Correct',v:correct,c:C.green},{l:'↷ Skipped',v:skipped,c:C.gold},{l:'⏱ Time',v:`${mm}m ${ss}s`,c:C.a},{l:'Score %',v:`${pct}%`,c:C.text},{l:'⭐ Bonus',v:bonus,c:C.gold},{l:'Total/Max',v:`${score}/${total}`,c:C.a3}].map((x,i)=>(
+                <div key={i} style={{background:C.p2,border:'1px solid rgba(0,229,255,0.15)',borderRadius:8,padding:10}}>
+                  <div style={{fontSize:9,color:C.dim,letterSpacing:1,textTransform:'uppercase',marginBottom:3,fontFamily:'monospace'}}>{x.l}</div>
+                  <div style={{fontSize:20,fontWeight:700,color:x.c,fontFamily:'monospace'}}>{x.v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{textAlign:'left',marginBottom:18}}>
+              <div style={{fontSize:10,color:C.dim,letterSpacing:2,textTransform:'uppercase',marginBottom:8,fontFamily:'monospace'}}>Mission Debrief</div>
+              <div style={{background:C.p2,borderRadius:10,border:'1px solid rgba(0,229,255,0.15)',overflow:'hidden'}}>
+                {Q.map((q,i)=>{
+                  const res=results[i];
+                  const ic=!res?'⬜':res.skipped?'⟳':res.correct?'✅':'❌';
+                  const txt=q.text.filter(p=>p.t==='t').map(p=>p.c).join(' ').replace(/\n/g,' ').trim().substring(0,62)+'…';
+                  return (
+                    <div key={i} style={{display:'flex',gap:10,alignItems:'center',padding:'7px 14px',borderBottom:'1px solid rgba(255,255,255,0.04)',fontSize:12}}>
+                      <span style={{color:C.dim,fontWeight:700,flexShrink:0,width:18,fontFamily:'monospace'}}>{i+1}</span>
+                      <span style={{flex:1,color:'#8ab0cc',fontFamily:'monospace'}}>{txt}</span>
+                      <span style={{flexShrink:0}}>{ic}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <button className="big-btn" style={{padding:'12px 32px',borderRadius:10,border:'none',cursor:'pointer',fontSize:12,fontWeight:900,letterSpacing:2,textTransform:'uppercase',background:'linear-gradient(135deg,#00e5ff,#0080ff)',color:'#000',boxShadow:'0 8px 24px rgba(0,229,255,0.35)',marginTop:12,fontFamily:'monospace'}} onClick={()=>window.location.reload()}>
+              ↺ REPLAY MISSION
+            </button>
+          </Card>
+        </Wrap>
+      </div>
+    );
+  }
+  return null;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+
+// Hide loading screen once React renders
+setTimeout(()=>{
+  const el = document.getElementById('loading');
+  if(el){el.style.opacity='0'; setTimeout(()=>el.remove(),500);}
+},1200);
+</script>
+</body>
+</html>
